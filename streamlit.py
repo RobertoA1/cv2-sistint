@@ -2,11 +2,22 @@ from streamlit_webrtc import webrtc_streamer
 import cv2
 import av
 import numpy as np
+import streamlit as st
 
 face_cascade = cv2.CascadeClassifier('./haarcascade_frontalface_alt.xml')
 eye_cascade = cv2.CascadeClassifier('./haarcascade_eye.xml')
 
-sunglasses_img = cv2.imread('images/lentes1.png', cv2.IMREAD_UNCHANGED)
+if "lentes_path" not in st.session_state:
+    st.session_state['lentes_path'] = './images/lentes1.png'
+if "factor_tamaño_lentes" not in st.session_state:
+    st.session_state["factor_tamaño_lentes"] = 0.85
+if "factor_altura_lentes" not in st.session_state:
+    st.session_state["factor_altura_lentes"] = 0.7
+
+sunglasses_img = cv2.imread(st.session_state["lentes_path"], cv2.IMREAD_UNCHANGED)
+
+factor_tamaño_lentes = st.session_state['factor_tamaño_lentes']
+factor_altura_lentes = st.session_state['factor_altura_lentes']
 
 def unsharp_mask(image, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0):
     blurred = cv2.GaussianBlur(image, kernel_size, sigma)
@@ -38,13 +49,13 @@ def eliminarFondo(frame: av.VideoFrame) -> av.VideoFrame:
     if len(centers) > 1: # if detects both eyes
         h, w = sunglasses_img.shape[:2]
         eye_distance = abs(centers[1][0] - centers[0][0])
-        sunglasses_width = 2.12 * eye_distance
+        sunglasses_width = 2.12 * eye_distance * (1/(1.8 - factor_tamaño_lentes))
         scaling_factor = sunglasses_width / w
         overlay_sunglasses = cv2.resize(sunglasses_img, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_AREA)
 
         x = centers[0][0] if centers[0][0] < centers[1][0] else centers[1][0]
         x -= int(0.26*overlay_sunglasses.shape[1])
-        y += int(0.9*overlay_sunglasses.shape[0])
+        y += int(factor_altura_lentes*overlay_sunglasses.shape[0])
 
         h, w = overlay_sunglasses.shape[:2]
         h, w = int(h), int(w)
@@ -70,10 +81,75 @@ def eliminarFondo(frame: av.VideoFrame) -> av.VideoFrame:
             print('Ignoring arithmetic exceptions: '+ str(e))
 
         frame[y:y+h, x:x+w] = cv2.add(masked_face, masked_frame)
-    else:
-        print('Eyes not detected')
 
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
+
+css = """
+    <style>
+        .stVerticalBlock {
+            display: grid !important;
+            grid-template-rows: 200px 200px 1fr 100px !important;
+            grid-template-columns: 1fr 1fr 1fr !important;
+        }
+
+        .stVerticalBlock > * {
+            grid-column: 1 / 4 !important;    
+        }
+
+        .stButton {
+            display: inline-block !important;
+            width: 200px !important;
+            height: 200px !important;
+        }
+
+        .stButton button {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .stButton button div {
+            width: inherit !important;
+            height: inherit !important;
+        }
+
+        .stButton button div p {
+            display: block !important;
+            width: inherit !important;
+            height: inherit !important;
+        }
+
+        .stButton button div p img {
+            height: 100% !important;
+            max-height: 100% !important;
+        }
+
+        .st-key-selector-lentes {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 20px !important;
+            flex-direction: row !important;
+        }
+    </style>
+"""
+
+st.title('Elige los lentes que más te gusten 😎')
+
+with st.container(key='selector-lentes'):
+    botonLentes1 = st.button("![Lentes 1](https://i.imgur.com/2mTPw0l_d.webp)")
+    botonLentes2 = st.button("![Lentes 2](https://i.imgur.com/7nLFjDE.png)")
+    botonLentes3 = st.button("![Lentes 3](https://i.imgur.com/YNxYJJw.png)")
+
+st.html(css)
+
+if botonLentes1:
+    st.session_state["lentes_path"] = './images/lentes1.png'
+    sunglasses_img = cv2.imread('./images/lentes1.png', cv2.IMREAD_UNCHANGED)
+elif botonLentes2:
+    st.session_state["lentes_path"] = './images/lentes2.png'
+    sunglasses_img = cv2.imread('./images/lentes2.png', cv2.IMREAD_UNCHANGED)
+elif botonLentes3:
+    st.session_state["lentes_path"] = './images/lentes3.png'
+    sunglasses_img = cv2.imread('./images/lentes3.png', cv2.IMREAD_UNCHANGED)
 
 video = webrtc_streamer(
     key="sistinteligentes",
@@ -84,3 +160,15 @@ video = webrtc_streamer(
         "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
     }
 )
+
+with st.container(key='selector-parametros'):
+    col1, col2 = st.columns(2)
+    with col1:
+        tamaño = st.slider('Tamaño de los Lentes', 0.8, 1.0, 0.85)
+        factor_tamaño_lentes = tamaño
+    with col2:
+        alturaOjos = st.slider('Posición Y de los lentes', 0.0, 1.0, 0.7)
+        factor_altura_lentes = alturaOjos
+
+st.session_state["factor_tamaño_lentes"] = tamaño
+st.session_state["factor_altura_lentes"] = alturaOjos
