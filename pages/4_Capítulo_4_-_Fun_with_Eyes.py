@@ -132,7 +132,12 @@ css = """
     </style>
 """
 
-st.title('Elige los lentes que más te gusten 😎')
+st.set_page_config(
+    page_title="Capítulo 04: Fun with eyes",
+    page_icon="😎"
+)
+
+st.title('Capítulo 04: Fun with eyes')
 
 with st.container(key='selector-lentes'):
     botonLentes1 = st.button("![Lentes 1](https://i.imgur.com/2mTPw0l_d.webp)")
@@ -152,7 +157,7 @@ elif botonLentes3:
     sunglasses_img = cv2.imread('./images/lentes3.png', cv2.IMREAD_UNCHANGED)
 
 video = webrtc_streamer(
-    key="sistinteligentes",
+    key="sistinteligentes4",
     media_stream_constraints={"video": True, "audio": False},
     async_processing=True,
     video_frame_callback=eliminarFondo,
